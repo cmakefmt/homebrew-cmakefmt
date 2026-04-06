@@ -1,0 +1,28 @@
+name: CI
+
+on:
+  push:
+    branches:
+      - main
+  pull_request:
+  workflow_dispatch:
+
+jobs:
+  brew:
+    runs-on: macos-latest
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v6.0.2
+
+      - name: Update Homebrew
+        run: brew update
+
+      - name: Audit formula
+        run: brew audit --strict --online cmakefmt/cmakefmt/cmakefmt
+
+      - name: Install formula from source
+        run: brew install --build-from-source cmakefmt/cmakefmt/cmakefmt
+
+      - name: Test formula
+        run: brew test cmakefmt/cmakefmt/cmakefmt
