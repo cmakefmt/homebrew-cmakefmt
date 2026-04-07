@@ -13,10 +13,13 @@ jobs:
 
     steps:
       - name: Check out repository
-        uses: actions/checkout@v6.0.2
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd  # v6.0.2
 
       - name: Update Homebrew
         run: brew update
+
+      - name: Tap local repository
+        run: brew tap cmakefmt/cmakefmt ${{ github.workspace }}
 
       - name: Audit formula
         run: brew audit --strict --online cmakefmt/cmakefmt/cmakefmt
