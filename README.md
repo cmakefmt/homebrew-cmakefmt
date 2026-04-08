@@ -1,5 +1,7 @@
 # cmakefmt Homebrew Tap
 
+[![CI](https://github.com/cmakefmt/homebrew-cmakefmt/actions/workflows/ci.yml/badge.svg?branch=main)](https://github.com/cmakefmt/homebrew-cmakefmt/actions/workflows/ci.yml)
+
 This tap publishes the official Homebrew formula for [`cmakefmt`](https://github.com/cmakefmt/cmakefmt).
 
 ## Install
