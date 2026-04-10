@@ -1,4 +1,4 @@
-# cmakefmt Homebrew Tap
+# `cmakefmt` Homebrew Tap
 
 [![CI](https://github.com/cmakefmt/homebrew-cmakefmt/actions/workflows/ci.yml/badge.svg?branch=main)](https://github.com/cmakefmt/homebrew-cmakefmt/actions/workflows/ci.yml)
 
