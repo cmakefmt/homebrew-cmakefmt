@@ -5,8 +5,8 @@
 class Cmakefmt < Formula
   desc "Fast, correct CMake formatter"
   homepage "https://cmakefmt.dev"
-  url "https://github.com/cmakefmt/cmakefmt/archive/refs/tags/v1.1.0.tar.gz"
-  sha256 "c903a4ad43bcc28f434861c1f50d552f238b1284a196dbe583f61d5b8dfb7e75"
+  url "https://github.com/cmakefmt/cmakefmt/archive/refs/tags/v1.2.0.tar.gz"
+  sha256 "1c2981dc6f38d2a99a8744e3620e7f27cfa7e08584a95c53669b51d4f94ddc4e"
   license any_of: ["MIT", "Apache-2.0"]
 
   depends_on "rust" => :build
