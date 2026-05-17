@@ -5,8 +5,8 @@
 class Cmakefmt < Formula
   desc "Fast, correct CMake formatter"
   homepage "https://cmakefmt.dev"
-  url "https://github.com/cmakefmt/cmakefmt/archive/refs/tags/v1.4.2.tar.gz"
-  sha256 "5fcb55e9dd4e6b7584eaaf8037b1afa73ad85204cd8ce072e1662680c2b51f46"
+  url "https://github.com/cmakefmt/cmakefmt/archive/refs/tags/v1.5.0.tar.gz"
+  sha256 "82c1146f3bc972e95ff3e1ff402fbbc4dc9100d54e173986b72ddd72bce36455"
   license any_of: ["MIT", "Apache-2.0"]
 
   depends_on "rust" => :build
@@ -17,7 +17,7 @@ class Cmakefmt < Formula
     (buildpath/"cmakefmt.bash").write Utils.safe_popen_read(bin/"cmakefmt", "completions", "bash")
     (buildpath/"_cmakefmt").write Utils.safe_popen_read(bin/"cmakefmt", "completions", "zsh")
     (buildpath/"cmakefmt.fish").write Utils.safe_popen_read(bin/"cmakefmt", "completions", "fish")
-    (buildpath/"cmakefmt.1").write Utils.safe_popen_read(bin/"cmakefmt", "--generate-man-page")
+    (buildpath/"cmakefmt.1").write Utils.safe_popen_read(bin/"cmakefmt", "manpage")
 
     bash_completion.install buildpath/"cmakefmt.bash"
     zsh_completion.install buildpath/"_cmakefmt"
