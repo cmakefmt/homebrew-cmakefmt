@@ -33,6 +33,9 @@ jobs:
       - name: Tap local repository
         run: brew tap cmakefmt/cmakefmt ${{ github.workspace }}
 
+      - name: Trust local tap
+        run: brew trust cmakefmt/cmakefmt
+
       - name: Audit formula
         run: brew audit --strict --online cmakefmt/cmakefmt/cmakefmt
 
@@ -80,6 +83,9 @@ jobs:
 
       - name: Tap local repository
         run: brew tap cmakefmt/cmakefmt ${{ github.workspace }}
+
+      - name: Trust local tap
+        run: brew trust cmakefmt/cmakefmt
 
       - name: Merge bottle block
         shell: bash
