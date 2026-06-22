@@ -11,10 +11,10 @@ class Cmakefmt < Formula
 
   bottle do
     root_url "https://github.com/cmakefmt/homebrew-cmakefmt/releases/download/v1.7.0"
-    sha256 cellar: :any_skip_relocation, arm64_tahoe:   "28cd7c64eba44e87f1f3621acbd1f798a11143089202290b8f4e7a25d44c2696"
-    sha256 cellar: :any_skip_relocation, arm64_sequoia: "063bebb7568d236cc820639234472890ce4fdd3de3d9227a6941daf0ac3262a3"
-    sha256 cellar: :any_skip_relocation, tahoe:         "eaf162b3e19a75bc7ae777dbf112b7771dad1e2bb822b57fbe4f67721094a3f8"
-    sha256 cellar: :any_skip_relocation, sequoia:       "da2623852eb7ea6ac082d6849dad46cfde43abbfdfb3a99526cfba40fe93c3b9"
+    sha256 cellar: :any_skip_relocation, arm64_tahoe:   "5d54ed83b13bd3ef681add214dc2c10c51accfad236dff788b067feb6af00ba3"
+    sha256 cellar: :any_skip_relocation, arm64_sequoia: "d4bfefdfa94f59161baae84fec5bb77dbadd3183fe050c589f8f106bc9065a51"
+    sha256 cellar: :any_skip_relocation, tahoe:         "3e34b3f7ed215a7e588c771f9d0776faa7ae2a5cc820ee1298efb33f2112a28c"
+    sha256 cellar: :any_skip_relocation, sequoia:       "1686d15c8b1aa3c57ed695a4aed6504a0215641dbf6b1952ecaa472d78d15812"
   end
 
   depends_on "rust" => :build
