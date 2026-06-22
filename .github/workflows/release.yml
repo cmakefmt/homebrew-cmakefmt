@@ -16,14 +16,115 @@ concurrency:
   cancel-in-progress: false
 
 jobs:
-  release:
-    name: release
-    runs-on: ubuntu-latest
+  build-bottles:
+    name: build-bottles (${{ matrix.runner }})
+    runs-on: ${{ matrix.runner }}
+    strategy:
+      fail-fast: false
+      matrix:
+        runner: [macos-15, macos-15-intel]
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd  # v6.0.2
+
+      - name: Update Homebrew
+        run: brew update
+
+      - name: Tap local repository
+        run: brew tap cmakefmt/cmakefmt ${{ github.workspace }}
+
+      - name: Audit formula
+        run: brew audit --strict --online cmakefmt/cmakefmt/cmakefmt
+
+      - name: Build bottle
+        run: brew install --build-bottle cmakefmt/cmakefmt/cmakefmt
+
+      - name: Test bottle build
+        run: brew test cmakefmt/cmakefmt/cmakefmt
+
+      - name: Bottle formula
+        env:
+          BOTTLE_ROOT_URL: https://github.com/${{ github.repository }}/releases/download/${{ github.ref_name }}
+        run: brew bottle --json --root-url "${BOTTLE_ROOT_URL}" cmakefmt/cmakefmt/cmakefmt
+
+      - name: Upload bottle artifacts
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02  # v4.6.2
+        with:
+          name: bottle-${{ matrix.runner }}
+          path: |
+            *.bottle.json
+            *.bottle*.tar.gz
+          if-no-files-found: error
+
+  merge-bottle-block:
+    name: merge-bottle-block
+    runs-on: macos-15
+    needs: build-bottles
     permissions:
       contents: write
     steps:
       - name: Check out repository
         uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd  # v6.0.2
+        with:
+          ref: main
+
+      - name: Download bottle artifacts
+        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093  # v4
+        with:
+          pattern: bottle-*
+          path: bottle-artifacts
+          merge-multiple: true
+
+      - name: Update Homebrew
+        run: brew update
+
+      - name: Tap local repository
+        run: brew tap cmakefmt/cmakefmt ${{ github.workspace }}
+
+      - name: Merge bottle block
+        shell: bash
+        run: |
+          set -euo pipefail
+          bottle_json=()
+          while IFS= read -r -d '' file; do
+            bottle_json+=("${file}")
+          done < <(find bottle-artifacts -name '*.bottle.json' -print0)
+          if [[ ${#bottle_json[@]} -eq 0 ]]; then
+            echo "No bottle JSON files were downloaded."
+            exit 1
+          fi
+          brew bottle --merge --write --no-commit "${bottle_json[@]}"
+
+      - name: Commit bottle block
+        shell: bash
+        run: |
+          set -euo pipefail
+          if git diff --quiet -- Formula/cmakefmt.rb; then
+            echo "Formula bottle block already up to date."
+            exit 0
+          fi
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add Formula/cmakefmt.rb
+          git commit -m "Add bottles for ${GITHUB_REF_NAME}"
+          git push origin HEAD:main
+
+  release:
+    name: release
+    runs-on: ubuntu-latest
+    needs: merge-bottle-block
+    permissions:
+      contents: write
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd  # v6.0.2
+
+      - name: Download bottle artifacts
+        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093  # v4
+        with:
+          pattern: bottle-*
+          path: bottle-artifacts
+          merge-multiple: true
 
       - name: Create GitHub Release
         uses: softprops/action-gh-release@153bb8e04406b158c6c84fc1615b65b24149a1fe  # v2.6.1
@@ -32,3 +133,4 @@ jobs:
           name: cmakefmt ${{ github.ref_name }}
           body: |
             Formula update for [cmakefmt ${{ github.ref_name }}](https://github.com/cmakefmt/cmakefmt/releases/tag/${{ github.ref_name }}).
+          files: bottle-artifacts/*.bottle*.tar.gz
