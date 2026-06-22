@@ -133,6 +133,15 @@ jobs:
           path: bottle-artifacts
           merge-multiple: true
 
+      - name: Add Homebrew release filenames
+        shell: bash
+        run: |
+          set -euo pipefail
+          shopt -s nullglob
+          for bottle in bottle-artifacts/cmakefmt--*.bottle.tar.gz; do
+            cp "${bottle}" "${bottle/cmakefmt--/cmakefmt-}"
+          done
+
       - name: Create GitHub Release
         uses: softprops/action-gh-release@153bb8e04406b158c6c84fc1615b65b24149a1fe  # v2.6.1
         with:
