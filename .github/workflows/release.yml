@@ -8,15 +8,56 @@ on:
   push:
     tags:
       - 'v*'
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: "Existing tap release tag to build bottles for, for example v2.0.0"
+        required: true
+        type: string
 
 permissions: read-all
 
 concurrency:
-  group: release-${{ github.ref }}
+  group: release-${{ inputs.tag || github.ref_name }}
   cancel-in-progress: false
 
 jobs:
+  metadata:
+    runs-on: ubuntu-latest
+    outputs:
+      tag: ${{ steps.resolve.outputs.tag }}
+      version: ${{ steps.resolve.outputs.version }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1
+        with:
+          fetch-depth: 0
+
+      - name: Resolve and validate release
+        id: resolve
+        shell: bash
+        env:
+          RELEASE_TAG: ${{ inputs.tag || github.ref_name }}
+        run: |
+          set -euo pipefail
+          if [[ "${GITHUB_EVENT_NAME}" == "workflow_dispatch" && "${GITHUB_REF_NAME}" != "main" ]]; then
+            echo "::error::Manual bottle recovery must run from main."
+            exit 1
+          fi
+          if [[ ! "${RELEASE_TAG}" =~ ^v[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+            echo "::error::Expected a release tag such as v2.0.0."
+            exit 1
+          fi
+          git rev-parse --verify "refs/tags/${RELEASE_TAG}" >/dev/null
+          VERSION="${RELEASE_TAG#v}"
+          git show "refs/tags/${RELEASE_TAG}:Formula/cmakefmt.rb" |
+            grep -F "archive/refs/tags/${RELEASE_TAG}.tar.gz"
+          {
+            echo "tag=${RELEASE_TAG}"
+            echo "version=${VERSION}"
+          } >> "${GITHUB_OUTPUT}"
+
   build-bottles:
+    needs: metadata
     name: build-bottles (${{ matrix.runner }})
     runs-on: ${{ matrix.runner }}
     strategy:
@@ -25,13 +66,35 @@ jobs:
         runner: [macos-15, macos-15-intel, macos-26, macos-26-intel]
     steps:
       - name: Check out repository
-        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd  # v6.0.2
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1
+        with:
+          fetch-depth: 0
+
+      - name: Check out the tagged tap in a separate worktree
+        env:
+          RELEASE_TAG: ${{ needs.metadata.outputs.tag }}
+        run: git worktree add --detach tap-source "refs/tags/${RELEASE_TAG}"
+
+      - name: Install Rust independently of Homebrew
+        uses: dtolnay/rust-toolchain@29eef336d9b2848a0b548edc03f92a220660cdb8  # stable
+        with:
+          toolchain: stable
+
+      - name: Expose the real Rust toolchain binaries
+        shell: bash
+        run: |
+          set -euo pipefail
+          RUST_BIN="$(dirname "$(rustup which cargo)")"
+          echo "${RUST_BIN}" >> "${GITHUB_PATH}"
+          echo "CMAKEFMT_RUST_BIN=${RUST_BIN}" >> "${GITHUB_ENV}"
 
       - name: Update Homebrew
         run: brew update
 
       - name: Tap local repository
-        run: brew tap cmakefmt/cmakefmt ${{ github.workspace }}
+        env:
+          TAP_PATH: ${{ github.workspace }}/tap-source
+        run: brew tap cmakefmt/cmakefmt "${TAP_PATH}"
 
       - name: Trust local tap
         run: brew trust cmakefmt/cmakefmt
@@ -40,14 +103,14 @@ jobs:
         run: brew audit --strict --online cmakefmt/cmakefmt/cmakefmt
 
       - name: Build bottle
-        run: brew install --build-bottle cmakefmt/cmakefmt/cmakefmt
+        run: brew ruby scripts/build-bottle.rb
 
       - name: Test bottle build
         run: brew test cmakefmt/cmakefmt/cmakefmt
 
       - name: Bottle formula
         env:
-          BOTTLE_ROOT_URL: https://github.com/${{ github.repository }}/releases/download/${{ github.ref_name }}
+          BOTTLE_ROOT_URL: https://github.com/${{ github.repository }}/releases/download/${{ needs.metadata.outputs.tag }}
         run: brew bottle --json --root-url "${BOTTLE_ROOT_URL}" cmakefmt/cmakefmt/cmakefmt
 
       - name: Upload bottle artifacts
@@ -62,12 +125,12 @@ jobs:
   merge-bottle-block:
     name: merge-bottle-block
     runs-on: macos-15
-    needs: build-bottles
+    needs: [metadata, build-bottles]
     permissions:
       contents: write
     steps:
       - name: Check out repository
-        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd  # v6.0.2
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1
         with:
           ref: main
 
@@ -82,15 +145,23 @@ jobs:
         run: brew update
 
       - name: Tap local repository
-        run: brew tap cmakefmt/cmakefmt ${{ github.workspace }}
+        env:
+          TAP_PATH: ${{ github.workspace }}
+        run: brew tap cmakefmt/cmakefmt "${TAP_PATH}"
 
       - name: Trust local tap
         run: brew trust cmakefmt/cmakefmt
 
       - name: Merge bottle block
         shell: bash
+        env:
+          RELEASE_TAG: ${{ needs.metadata.outputs.tag }}
         run: |
           set -euo pipefail
+          if ! grep -Fq "archive/refs/tags/${RELEASE_TAG}.tar.gz" Formula/cmakefmt.rb; then
+            echo "::error::main now points to a different release; refusing to merge stale bottles."
+            exit 1
+          fi
           bottle_json=()
           while IFS= read -r -d '' file; do
             bottle_json+=("${file}")
@@ -104,6 +175,8 @@ jobs:
 
       - name: Commit bottle block
         shell: bash
+        env:
+          RELEASE_TAG: ${{ needs.metadata.outputs.tag }}
         run: |
           set -euo pipefail
           if git diff --quiet -- Formula/cmakefmt.rb; then
@@ -113,18 +186,18 @@ jobs:
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           git add Formula/cmakefmt.rb
-          git commit -m "Add bottles for ${GITHUB_REF_NAME}"
+          git commit -m "Add bottles for ${RELEASE_TAG}"
           git push origin HEAD:main
 
   release:
     name: release
     runs-on: ubuntu-latest
-    needs: merge-bottle-block
+    needs: [metadata, merge-bottle-block]
     permissions:
       contents: write
     steps:
       - name: Check out repository
-        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd  # v6.0.2
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1
 
       - name: Download bottle artifacts
         uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093  # v4
@@ -143,10 +216,10 @@ jobs:
           done
 
       - name: Create GitHub Release
-        uses: softprops/action-gh-release@153bb8e04406b158c6c84fc1615b65b24149a1fe  # v2.6.1
+        uses: softprops/action-gh-release@efb35369e0ad2afab669f228072c1b0d510eae64  # v3.0.3
         with:
-          tag_name: ${{ github.ref_name }}
-          name: cmakefmt ${{ github.ref_name }}
+          tag_name: ${{ needs.metadata.outputs.tag }}
+          name: cmakefmt ${{ needs.metadata.outputs.tag }}
           body: |
-            Formula update for [cmakefmt ${{ github.ref_name }}](https://github.com/cmakefmt/cmakefmt/releases/tag/${{ github.ref_name }}).
+            Formula update for [cmakefmt ${{ needs.metadata.outputs.tag }}](https://github.com/cmakefmt/cmakefmt/releases/tag/${{ needs.metadata.outputs.tag }}).
           files: bottle-artifacts/*.bottle*.tar.gz
