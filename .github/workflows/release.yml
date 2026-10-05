@@ -103,7 +103,7 @@ jobs:
         run: brew audit --strict --online cmakefmt/cmakefmt/cmakefmt
 
       - name: Build bottle
-        run: brew ruby scripts/build-bottle.rb
+        run: brew ruby -- scripts/build-bottle.rb "${CMAKEFMT_RUST_BIN}"
 
       - name: Test bottle build
         run: brew test cmakefmt/cmakefmt/cmakefmt

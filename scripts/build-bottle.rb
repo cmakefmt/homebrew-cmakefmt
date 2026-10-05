@@ -2,7 +2,7 @@
 #
 # SPDX-License-Identifier: MIT OR Apache-2.0
 
-# Run with "brew ruby scripts/build-bottle.rb" on an ephemeral CI runner.
+# Run with "brew ruby -- scripts/build-bottle.rb /path/to/rust/bin" on an ephemeral CI runner.
 # Homebrew no longer provides Intel bottles for Rust and its dependencies.
 # Use an independently installed Rust toolchain without changing the formula
 # or bypassing its source archive checksum. Normal installs still use brew.
@@ -13,9 +13,11 @@ unless formula.deps.length == 1 && formula.deps.first.name == "rust" && formula.
   abort "Expected Rust to be the only dependency; review the bottle builder before adding dependencies."
 end
 
-rust_bin = Pathname.new(ENV.fetch("CMAKEFMT_RUST_BIN")).realpath
+# Homebrew filters arbitrary environment variables before invoking Ruby.
+abort "Usage: brew ruby -- scripts/build-bottle.rb /path/to/rust/bin" unless ARGV.length == 1
+rust_bin = Pathname.new(ARGV.fetch(0)).realpath
 unless %w[cargo rustc].all? { |name| (rust_bin/name).executable? } && ORIGINAL_PATHS.include?(rust_bin)
-  abort "CMAKEFMT_RUST_BIN must contain cargo and rustc and be on PATH before running brew."
+  abort "The Rust toolchain directory must contain cargo and rustc and be on PATH before running brew."
 end
 
 # Using FormulaInstaller lets this CI-only build select the standard
