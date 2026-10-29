@@ -5,17 +5,9 @@
 class Cmakefmt < Formula
   desc "Fast, correct CMake formatter"
   homepage "https://cmakefmt.dev"
-  url "https://github.com/cmakefmt/cmakefmt/archive/refs/tags/v2.3.2.tar.gz"
-  sha256 "62e1b2e08d82078c059794ab80593ca48213bc16a647b4296c5c45976639869f"
+  url "https://github.com/cmakefmt/cmakefmt/archive/refs/tags/v2.4.0.tar.gz"
+  sha256 "02404edfeb4cac094f4db9a372a8f043b39a89158341ba5bca1d32b95ed9c593"
   license any_of: ["MIT", "Apache-2.0"]
-
-  bottle do
-    root_url "https://github.com/cmakefmt/homebrew-cmakefmt/releases/download/v2.3.2"
-    sha256 cellar: :any_skip_relocation, arm64_tahoe:   "48ce777c4d220910fd7444ffb3adbc946d0f275b9021f72418dab9ba694f6d3e"
-    sha256 cellar: :any_skip_relocation, arm64_sequoia: "65b47da817d88a43e5b686272054a33969472a745ac095d596314b2c7bc3804b"
-    sha256 cellar: :any_skip_relocation, tahoe:         "e536f6b00336a4e26fc23a77edbbf9c694a17b2dba1dd8b758c120bc020315db"
-    sha256 cellar: :any_skip_relocation, sequoia:       "14cb4d596dc65b601d4812bc11fb8774ff83f66f894f0d917eb4149fbade7cb4"
-  end
 
   depends_on "rust" => :build
 
